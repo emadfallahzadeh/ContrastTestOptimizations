@@ -30,7 +30,7 @@ def get_unit_divider(unit):
 #################
 def get_median_feedback_time(unit='hour'):
     unit_divider = get_unit_divider(unit)
-    algorthms_types = ['elbaum_selection', 'testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batching']
+    algorthms_types = ['elbaum_selection', 'testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batchall']
     w_e=2
     w_f=0
     windows_str=str(w_e)+ 'we_' + str(w_f) + 'wf'
@@ -48,7 +48,7 @@ def get_median_feedback_time(unit='hour'):
 ###################
 def Is_normally_distributed(algorithm_feedback):
     if not algorithm_feedback:
-        algorithm = 'batching'
+        algorithm = 'batchall'
         algorithm_feedback = f"{algorithm}_{cpu_count}cpu_feedback"
     query = f"SELECT (end_time - commit_time) AS feedback FROM {algorithm_feedback}"
     cur.execute(query)
@@ -104,7 +104,7 @@ def calculate_confidence_interval_not_normal(data, statistic, confidence_level=0
 
 def calculate_feedback_confidence_interval(algorithm_feedback, unit, statistic):
     if not algorithm_feedback:
-        algorithm = 'batching'
+        algorithm = 'batchall'
         algorithm_feedback = f"{algorithm}_{cpu_count}cpu_feedback"
     query = f"SELECT (end_time - commit_time) AS feedback FROM {algorithm_feedback}"
     cur.execute(query)
@@ -124,7 +124,7 @@ def calculate_feedback_confidence_interval(algorithm_feedback, unit, statistic):
 
 def get_all_feedback_confidence_intervals(unit='minute', statistic = calculate_median):
     windows = {'w_e': 2, 'w_f': 0, 'w_p': 2}
-    algorithms_types = ['testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batching']
+    algorithms_types = ['testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batchall']
     cpu_counts = [8, 16] + list(range(25, 401, 25))
     column_names = ['cpu count']
     for algorithm in algorithms_types:
@@ -145,9 +145,7 @@ def get_all_feedback_confidence_intervals(unit='minute', statistic = calculate_m
 
 ##################
 def generate_algorithm_feedback(algorithm, cpu_count, windows):
-    if algorithm.startswith('constantbatching'):
-        algorithm_feedback = f"constantbatching_{cpu_count}cpu_batch{algorithm[-1]}_feedback"
-    elif algorithm.startswith('elbaum_selection'):
+    if algorithm.startswith('elbaum_selection'):
         algorithm_feedback = f"{algorithm}_{cpu_count}cpu_{windows['w_e']}we_{windows['w_f']}wf_feedback"
     elif algorithm.startswith('elbaum_prioritization'):
         algorithm_feedback = f"{algorithm}_{cpu_count}cpu_{windows['w_e']}we_{windows['w_f']}wf_{windows['w_p']}wp_feedback"
@@ -171,7 +169,7 @@ def perform_comparison(cpu_data, algorithm1, algorithm2):
 
 def get_feedback_distribution_differences():
     windows = {'w_e': 2, 'w_f': 0, 'w_p': 2}
-    algorithms_types = ['testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batching']
+    algorithms_types = ['testall', 'kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batchall']
     cpu_counts = [8, 16] + list(range(25, 401, 25))
     results = []
     cpu_data = {}
@@ -205,7 +203,7 @@ def get_gained_time(unit='hour'):
             " e.run_time e_run_time, (f.run_time - e.run_time) e_run_time_diff," + \
             " es.run_time es_run_time, (f.run_time - es.run_time) es_run_time_diff," + \
             " d.run_time d_run_time, (f.run_time - d.run_time) d_run_time_diff" + \
-            " from testall_{0}cpu as f, kimporter_{0}cpu as k, elbaum_{0}cpu_{1}we_{2}wf_{3}wp as e, elbaum_selection_{0}cpu_{1}we_{2}wf as es, batching_{0}cpu as d".format(cpu_count, w_e, w_f, w_p) + \
+            " from testall_{0}cpu as f, kimporter_{0}cpu as k, elbaum_{0}cpu_{1}we_{2}wf_{3}wp as e, elbaum_selection_{0}cpu_{1}we_{2}wf as es, batchall_{0}cpu as d".format(cpu_count, w_e, w_f, w_p) + \
             " where f.verdict = false and f.main_run_order = k.main_run_order and f.main_run_order = e.main_run_order and f.main_run_order = es.main_run_order and f.main_run_order = d.main_run_order"
 
     df = pd.read_sql_query(query, con)
@@ -222,8 +220,8 @@ def get_gained_time(unit='hour'):
     print('elbaum_prioritization median failure gained time: ' + str(df['e_run_time_diff'].median().total_seconds()/unit_divider) + ' in ' + unit)
     print('elbaum_selection median failure run time: ' + str(df['es_run_time'].median().total_seconds()/unit_divider) + ' in ' + unit)
     print('elbaum_selection median failure gained time: ' + str(df['es_run_time_diff'].median().total_seconds()/unit_divider) + ' in ' + unit)
-    print('batching median failure run time: ' + str(df['d_run_time'].median().total_seconds()/unit_divider) + ' in ' + unit)
-    print('batching median failure gained time: ' + str(df['d_run_time_diff'].median().total_seconds()/unit_divider) + ' in ' + unit)
+    print('batchall median failure run time: ' + str(df['d_run_time'].median().total_seconds()/unit_divider) + ' in ' + unit)
+    print('batchall median failure gained time: ' + str(df['d_run_time_diff'].median().total_seconds()/unit_divider) + ' in ' + unit)
 
 
 ###################
@@ -238,16 +236,16 @@ def get_gained_times(cpu_count, windows):
     query = "select (f.run_time - k.run_time) kimporter," + \
             " (f.run_time - e.run_time) elbaum_prioritization," + \
             " (f.run_time - es.run_time) elbaum_selection," + \
-            " (f.run_time - d.run_time) batching" + \
+            " (f.run_time - d.run_time) batchall" + \
             f" from testall_{cpu_count}cpu as f, kimporter_{cpu_count}cpu as k, elbaum_{cpu_count}cpu_{windows['w_e']}we_{windows['w_f']}wf_{windows['w_p']}wp as e," \
-            f" elbaum_selection_{cpu_count}cpu_{windows['w_e']}we_{windows['w_f']}wf as es, batching_{cpu_count}cpu as d" + \
+            f" elbaum_selection_{cpu_count}cpu_{windows['w_e']}we_{windows['w_f']}wf as es, batchall_{cpu_count}cpu as d" + \
             " where f.verdict = false and f.main_run_order = k.main_run_order and f.main_run_order = e.main_run_order and f.main_run_order = es.main_run_order and f.main_run_order = d.main_run_order"
     df = pd.read_sql_query(query, con)
     return df
 
 def get_gained_time_distribution_differences():
     windows = {'w_e': 2, 'w_f': 0, 'w_p': 2}
-    algorithms_types = ['kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batching']
+    algorithms_types = ['kimporter', 'elbaum_prioritization', 'elbaum_selection', 'batchall']
     cpu_counts = [8, 16] + list(range(25, 401, 25))
     results = []
     cpu_data = {}

@@ -42,10 +42,10 @@ ElbaumPrioritization:
 ElbaumSelection:
 > python3 ElbaumTestSelection.py
 
-Batching:
+BatchAll:
 
 set batch_size = 0 in config.conf
-> python3 Batching.py
+> python3 BatchAll.py
 
 
 6. To analyze the results:
